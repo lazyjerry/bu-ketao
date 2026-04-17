@@ -3,10 +3,10 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![繁體中文](https://img.shields.io/badge/語言-繁體中文-red.svg)](#)
 [![壓縮率](https://img.shields.io/badge/壓縮率-~72%25-brightgreen.svg)](#實測數據)
-[![Claude Code](https://img.shields.io/badge/Claude_Code-skill-blueviolet.svg)](rules/claude-code-skill.md)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-skill-blueviolet.svg)](CLAUDE.md)
 [![ChatGPT](https://img.shields.io/badge/ChatGPT-compatible-74aa9c.svg)](rules/system-prompt.md)
 [![Cursor](https://img.shields.io/badge/Cursor-compatible-000.svg)](rules/cursorrules)
-[![Copilot](https://img.shields.io/badge/Copilot-compatible-1f6feb.svg)](rules/copilot-instructions.md)
+[![Copilot](https://img.shields.io/badge/Copilot-compatible-1f6feb.svg)](AGENTS.md)
 
 [English](README.en.md)
 
@@ -205,14 +205,50 @@ Token 計算使用 cl100k_base tokenizer（GPT-4/Claude 系列）。
 
 ## 使用方式
 
-### Claude Code（skill）
+### Claude Code — 全域規範（CLAUDE.md）
 
-把 [`rules/claude-code-skill.md`](rules/claude-code-skill.md) 複製到 `~/.claude/commands/bu-ketao.md`：
+把 [`CLAUDE.md`](CLAUDE.md) 複製或 symlink 到 `~/.claude/CLAUDE.md`，所有 Claude Code 對話自動套用壓縮：
+
+```bash
+# 複製
+cp CLAUDE.md ~/.claude/CLAUDE.md
+
+# 或 symlink（隨專案更新）
+ln -sf "$(pwd)/CLAUDE.md" ~/.claude/CLAUDE.md
+```
+
+### Claude Code — Slash Command
+
+把 [`commands/bu-ketao.md`](commands/bu-ketao.md) 複製到 `~/.claude/commands/bu-ketao.md`，手動觸發並支援等級切換：
+
+```bash
+cp commands/bu-ketao.md ~/.claude/commands/bu-ketao.md
+```
 
 ```
 /bu-ketao          # 預設 full
 /bu-ketao lite     # 專業簡潔
 /bu-ketao ultra    # 最大壓縮
+```
+
+### GitHub Copilot — Coding Agent（AGENTS.md）
+
+把 [`AGENTS.md`](AGENTS.md) 放在任何 repo 根目錄，Copilot Coding Agent 自動套用：
+
+```bash
+cp AGENTS.md /path/to/your/project/AGENTS.md
+```
+
+### GitHub Copilot — Skill
+
+把 [`skill/bu-ketao/`](skill/bu-ketao/) 複製或 symlink 到 `~/.copilot/skills/`，Copilot Chat 跨 repo 自動偵測觸發：
+
+```bash
+# 複製
+cp -r skill/bu-ketao ~/.copilot/skills/bu-ketao
+
+# 或 symlink
+ln -sf "$(pwd)/skill/bu-ketao" ~/.copilot/skills/bu-ketao
 ```
 
 ### ChatGPT / Claude / Gemini（system prompt）
@@ -222,10 +258,6 @@ Token 計算使用 cl100k_base tokenizer（GPT-4/Claude 系列）。
 ### ChatGPT Custom Instructions / GPTs
 
 把 [`rules/openai-custom-instructions.md`](rules/openai-custom-instructions.md) 的內容貼進 ChatGPT 的 Custom Instructions 或 GPTs 的 system prompt。針對 OpenAI 的 token 上限精簡過。
-
-### GitHub Copilot
-
-把 [`rules/copilot-instructions.md`](rules/copilot-instructions.md) 複製到專案的 `.github/copilot-instructions.md`。額外包含 code comment 壓縮規則——comment 只寫 WHY，不寫 WHAT。
 
 ### Cursor
 
@@ -251,14 +283,21 @@ bu-ketao/
 ├── README.md                           ← 你在讀的這份（繁體中文）
 ├── README.en.md                        ← English version
 ├── LICENSE                             ← MIT
+├── CLAUDE.md                           ← Claude Code 全域規範（→ ~/.claude/CLAUDE.md）
+├── AGENTS.md                           ← Copilot Coding Agent 規範（放 repo 根目錄）
+├── commands/
+│   └── bu-ketao.md                     ← Claude Code slash command（→ ~/.claude/commands/）
+├── skill/
+│   └── bu-ketao/
+│       └── SKILL.md                    ← Copilot Skill（→ ~/.copilot/skills/）
 ├── rules/
 │   ├── system-prompt.md                ← 通用 system prompt（SSOT）
-│   ├── claude-code-skill.md            ← Claude Code skill
 │   ├── cursorrules                     ← Cursor 格式
-│   ├── openai-custom-instructions.md   ← ChatGPT / GPTs 格式
-│   └── copilot-instructions.md         ← GitHub Copilot 格式
-└── examples/
-    └── before-after.md                 ← 完整實測 before/after
+│   └── openai-custom-instructions.md   ← ChatGPT / GPTs 格式
+├── examples/
+│   └── before-after.md                 ← 完整實測 before/after
+└── docs/
+    └── report/
 ```
 
 ## 授權

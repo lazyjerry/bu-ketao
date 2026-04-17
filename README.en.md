@@ -3,7 +3,7 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![繁體中文](https://img.shields.io/badge/lang-Traditional_Chinese-red.svg)](#)
 [![Compression](https://img.shields.io/badge/compression-~72%25-brightgreen.svg)](#test-results)
-[![Claude Code](https://img.shields.io/badge/Claude_Code-skill-blueviolet.svg)](rules/claude-code-skill.md)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-skill-blueviolet.svg)](CLAUDE.md)
 [![ChatGPT](https://img.shields.io/badge/ChatGPT-compatible-74aa9c.svg)](rules/system-prompt.md)
 [![Cursor](https://img.shields.io/badge/Cursor-compatible-000.svg)](rules/cursorrules)
 
@@ -113,14 +113,50 @@ Chinese characters cost more tokens than English in most tokenizers:
 
 ## Usage
 
-### Claude Code (skill)
+### Claude Code — Global Rules (CLAUDE.md)
 
-Copy [`rules/claude-code-skill.md`](rules/claude-code-skill.md) to `~/.claude/commands/bu-ketao.md`:
+Copy or symlink [`CLAUDE.md`](CLAUDE.md) to `~/.claude/CLAUDE.md` for automatic compression in all Claude Code sessions:
+
+```bash
+# Copy
+cp CLAUDE.md ~/.claude/CLAUDE.md
+
+# Or symlink (auto-updates with project)
+ln -sf "$(pwd)/CLAUDE.md" ~/.claude/CLAUDE.md
+```
+
+### Claude Code — Slash Command
+
+Copy [`commands/bu-ketao.md`](commands/bu-ketao.md) to `~/.claude/commands/bu-ketao.md` for on-demand activation with intensity levels:
+
+```bash
+cp commands/bu-ketao.md ~/.claude/commands/bu-ketao.md
+```
 
 ```
 /bu-ketao          # default: full
 /bu-ketao lite     # professional, concise
 /bu-ketao ultra    # maximum compression
+```
+
+### GitHub Copilot — Coding Agent (AGENTS.md)
+
+Copy [`AGENTS.md`](AGENTS.md) to any repo root for automatic Copilot Coding Agent integration:
+
+```bash
+cp AGENTS.md /path/to/your/project/AGENTS.md
+```
+
+### GitHub Copilot — Skill
+
+Copy or symlink [`skill/bu-ketao/`](skill/bu-ketao/) to `~/.copilot/skills/` for cross-repo auto-detection:
+
+```bash
+# Copy
+cp -r skill/bu-ketao ~/.copilot/skills/bu-ketao
+
+# Or symlink
+ln -sf "$(pwd)/skill/bu-ketao" ~/.copilot/skills/bu-ketao
 ```
 
 ### ChatGPT / Claude / Gemini (system prompt)
