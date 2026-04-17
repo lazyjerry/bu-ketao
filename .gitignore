@@ -1,4 +1,6 @@
 openspec/
-CLAUDE.md
 .spectra.yaml
 .spectra/
+.DS_Store
+rules/CLAUDE.md
+rules/AGENTS.md
