@@ -3,10 +3,10 @@
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![繁體中文](https://img.shields.io/badge/語言-繁體中文-red.svg)](#)
 [![壓縮率](https://img.shields.io/badge/壓縮率-~72%25-brightgreen.svg)](#實測數據)
-[![Claude Code](https://img.shields.io/badge/Claude_Code-skill-blueviolet.svg)](CLAUDE.md)
+[![Claude Code](https://img.shields.io/badge/Claude_Code-skill-blueviolet.svg)](rules/CLAUDE.md)
 [![ChatGPT](https://img.shields.io/badge/ChatGPT-compatible-74aa9c.svg)](rules/system-prompt.md)
 [![Cursor](https://img.shields.io/badge/Cursor-compatible-000.svg)](rules/cursorrules)
-[![Copilot](https://img.shields.io/badge/Copilot-compatible-1f6feb.svg)](AGENTS.md)
+[![Copilot](https://img.shields.io/badge/Copilot-compatible-1f6feb.svg)](rules/AGENTS.md)
 
 [English](README.en.md)
 
@@ -207,14 +207,14 @@ Token 計算使用 cl100k_base tokenizer（GPT-4/Claude 系列）。
 
 ### Claude Code — 全域規範（CLAUDE.md）
 
-把 [`CLAUDE.md`](CLAUDE.md) 複製或 symlink 到 `~/.claude/CLAUDE.md`，所有 Claude Code 對話自動套用壓縮：
+把 [`rules/CLAUDE.md`](rules/CLAUDE.md) 複製或 symlink 到 `~/.claude/CLAUDE.md`，所有 Claude Code 對話自動套用壓縮：
 
 ```bash
 # 複製
-cp CLAUDE.md ~/.claude/CLAUDE.md
+cp rules/CLAUDE.md ~/.claude/CLAUDE.md
 
 # 或 symlink（隨專案更新）
-ln -sf "$(pwd)/CLAUDE.md" ~/.claude/CLAUDE.md
+ln -sf "$(pwd)/rules/CLAUDE.md" ~/.claude/CLAUDE.md
 ```
 
 ### Claude Code — Slash Command
@@ -233,10 +233,10 @@ cp commands/bu-ketao.md ~/.claude/commands/bu-ketao.md
 
 ### GitHub Copilot — Coding Agent（AGENTS.md）
 
-把 [`AGENTS.md`](AGENTS.md) 放在任何 repo 根目錄，Copilot Coding Agent 自動套用：
+把 [`rules/AGENTS.md`](rules/AGENTS.md) 放在任何 repo 根目錄，Copilot Coding Agent 自動套用：
 
 ```bash
-cp AGENTS.md /path/to/your/project/AGENTS.md
+cp rules/AGENTS.md /path/to/your/project/AGENTS.md
 ```
 
 ### GitHub Copilot — Skill
@@ -283,14 +283,14 @@ bu-ketao/
 ├── README.md                           ← 你在讀的這份（繁體中文）
 ├── README.en.md                        ← English version
 ├── LICENSE                             ← MIT
-├── CLAUDE.md                           ← Claude Code 全域規範（→ ~/.claude/CLAUDE.md）
-├── AGENTS.md                           ← Copilot Coding Agent 規範（放 repo 根目錄）
 ├── commands/
 │   └── bu-ketao.md                     ← Claude Code slash command（→ ~/.claude/commands/）
 ├── skill/
 │   └── bu-ketao/
 │       └── SKILL.md                    ← Copilot Skill（→ ~/.copilot/skills/）
 ├── rules/
+│   ├── CLAUDE.md                       ← Claude Code 全域規範（→ ~/.claude/CLAUDE.md）
+│   ├── AGENTS.md                       ← Copilot Coding Agent 規範（放 repo 根目錄）
 │   ├── system-prompt.md                ← 通用 system prompt（SSOT）
 │   ├── cursorrules                     ← Cursor 格式
 │   └── openai-custom-instructions.md   ← ChatGPT / GPTs 格式
