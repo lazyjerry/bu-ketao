@@ -241,7 +241,13 @@ cp rules/AGENTS.md /path/to/your/project/AGENTS.md
 
 ### GitHub Copilot — Skill
 
-把 [`skill/bu-ketao/`](skill/bu-ketao/) 複製或 symlink 到 `~/.copilot/skills/`，Copilot Chat 跨 repo 自動偵測觸發：
+推薦用 [`ai-global`](https://github.com/lazyjerry/ai-global) 一鍵安裝：
+
+```bash
+ai-global add lazyjerry/bu-ketao
+```
+
+或手動把 [`skill/bu-ketao/`](skill/bu-ketao/) 複製或 symlink 到 `~/.copilot/skills/`，Copilot Chat 跨 repo 自動偵測觸發：
 
 ```bash
 # 複製

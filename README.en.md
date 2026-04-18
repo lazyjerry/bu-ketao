@@ -149,7 +149,13 @@ cp rules/AGENTS.md /path/to/your/project/AGENTS.md
 
 ### GitHub Copilot — Skill
 
-Copy or symlink [`skill/bu-ketao/`](skill/bu-ketao/) to `~/.copilot/skills/` for cross-repo auto-detection:
+Recommended: install with [`ai-global`](https://github.com/lazyjerry/ai-global):
+
+```bash
+ai-global add lazyjerry/bu-ketao
+```
+
+Or copy or symlink [`skill/bu-ketao/`](skill/bu-ketao/) to `~/.copilot/skills/` for cross-repo auto-detection:
 
 ```bash
 # Copy
