@@ -1,30 +1,103 @@
 # Before / After 實測對比
 
-10 組技術開發情境 + 4 組非技術情境，用 Claude 測試。壓縮率以字數計算。
+10 組技術開發情境 + 4 組非技術情境，用 Claude CLI (`claude -p`) 雙向實測。
+- **Before [CLI 實測]**：2026-04-18，無 bu-ketao 規則，`claude-sonnet-4-6` 直接回應
+- **After [CLI 實測]**：2026-04-18，CLAUDE.md 載入 bu-ketao 規則後的回應
+
+> **重要發現**：原始文件的 Before 範例為假設性臃腫輸出。實測顯示現代 `claude-sonnet-4-6` 不帶規則已相當精簡，bu-ketao 的實際壓縮幅度比預估小，但仍有效果。
+
+---
 
 ## 情境 1：Obsidian plugin 生命週期
 
 **問題**：Obsidian plugin 開發中，onLayoutReady 和 onload 有什麼差別？什麼時候該用哪個？
 
-### Before（原始，~1,500 字）
+### Before [CLI 實測]（無 bu-ketao，~900 字）
 
-> 在 Obsidian plugin 開發中，`onload` 和 `onLayoutReady` 是兩個重要的生命週期鉤子，它們的觸發時機和用途確實有差別。
+> **`onload` vs `onLayoutReady`**
 >
-> **onload** 的觸發時機是當 plugin 被載入時立即執行，此時 Obsidian 的核心應用程式還在初始化過程中。用途包括：註冊命令、設定快捷鍵、添加功能區按鈕、設定全域事件監聽器。需要注意的是，此時應用程式的佈局可能還沒準備好，某些 UI 元素可能不存在。
+> **`onload`**
+> Plugin 的生命週期入口點，在 Obsidian **載入 plugin 時立即執行**，但此時 workspace layout 可能尚未完全初始化。
 >
-> **onLayoutReady** 的觸發時機是當 Obsidian 的整個佈局都初始化完成、所有 UI 元素都已準備好時執行。用途包括：操作或修改現有的 UI 元素、添加側邊欄面板、與具體的 UI 組件互動。
+> 適合做：
+> - 註冊 commands、ribbon icon、settings tab
+> - 註冊 event listener（`this.registerEvent(...)`）
+> - 初始化 plugin 設定（`loadData()`）
+> - 註冊 CodeMirror extension、markdown processor
 >
-> 簡單來說，如果你的功能不需要依賴 UI 的完整狀態，就在 `onload` 中做；如果需要確保 UI 完全就緒才能執行，就用 `onLayoutReady`。這樣可以避免試圖訪問還未初始化的 UI 元素而導致的錯誤。
+> **`onLayoutReady`**
+> `app.workspace.onLayoutReady(callback)` 會等到 **workspace 完全就緒**（所有 leaf、file index 都載入完成）才執行 callback。
+>
+> 適合做：
+> - 讀取目前開啟的檔案或 active leaf
+> - 操作 workspace leaf（開視窗、注入 view）
+> - 依賴 `app.vault.getFiles()` 或 metadata cache 的初始化邏輯
+>
+> 典型寫法：
+> ```ts
+> async onload() {
+>   await this.loadSettings();
+>   this.addCommand({ id: 'my-cmd', name: 'Do something', callback: () => {} });
+>   this.addSettingTab(new MySettingTab(this.app, this));
+>
+>   this.app.workspace.onLayoutReady(() => {
+>     this.initView();
+>     this.scanActiveFile();
+>   });
+> }
+> ```
+>
+> | 情境 | 用哪個 |
+> |------|--------|
+> | 註冊 command / event / setting | `onload` |
+> | 操作 workspace leaf / view | `onLayoutReady` |
+> | 讀取 active file、vault file list | `onLayoutReady` |
+> | 需要 metadata cache 初始化完成 | `onLayoutReady` |
+>
+> **關鍵原則**：任何「假設 workspace 存在某個狀態」的操作，都放進 `onLayoutReady`，其餘放 `onload`。
 
-### After（不客套 full，~600 字）
+### After [CLI 實測]（有 bu-ketao，~750 字）
 
-> **onload** — plugin 載入時執行，Obsidian 核心 API 已備好，但 workspace layout 還未完全初始化。適合：註冊 commands/events、設定初始化、全域監聽。
+> **`onload` vs `onLayoutReady`**
 >
-> **onLayoutReady** — workspace layout 完全完成，所有面板和 sidebar 已渲染。DOM 已穩定。適合：依賴特定 UI 組件位置的操作。
+> **`onload`**
+> Plugin 被載入時立即執行，此時 Obsidian UI **尚未完全渲染**。
 >
-> 不涉及 UI 位置 → `onload`。需要操作 workspace panel → `onLayoutReady`。兩個都需要？`onload` 做基本設定，`onLayoutReady` 做 UI 相關。
+> 適合：
+> - 註冊 commands、settings、event listeners
+> - 初始化資料結構、載入設定
+> - 加掛 `addRibbonIcon`、`addStatusBarItem`
+>
+> **`onLayoutReady(callback)`**
+> 在 `onload` 內呼叫，等 workspace layout 完全建立後才執行 callback。冷啟動時等 vault 載入完成；已開啟狀態下幾乎立即觸發。
+>
+> 適合：
+> - 讀取目前開啟的 leaves / editors
+> - 操作 `app.workspace.getActiveViewOfType()`
+> - 需要存取現有 pane/tab 的任何初始化邏輯
+>
+> 典型用法：
+> ```ts
+> async onload() {
+>   this.addCommand({ id: 'my-cmd', name: 'Do thing', callback: () => {} });
+>   this.registerEvent(this.app.vault.on('create', this.handleCreate));
+>
+>   this.app.workspace.onLayoutReady(() => {
+>     const leaf = this.app.workspace.getActiveLeaf();
+>     // 安全操作 leaf
+>   });
+> }
+> ```
+>
+> | | `onload` | `onLayoutReady` callback |
+> |---|---|---|
+> | 執行時機 | Plugin 掛載時立即 | Workspace layout 就緒後 |
+> | Workspace 可用？ | 不保證 | 保證 |
+> | 冷啟動延遲 | 無 | 有（等 vault index） |
+>
+> **原則**：凡是要碰 `app.workspace` 的現有狀態，進 `onLayoutReady`；其餘註冊類工作在 `onload` 頂層做。
 
-**壓縮率：~60%**
+**壓縮率：~17%**（兩版本結構相近，bu-ketao 版精簡了表格措辭，省略了部分場景描述）
 
 ---
 
@@ -32,36 +105,84 @@
 
 **問題**：TypeScript 專案 build 時出現 'Type X is not assignable to type Y'，但 VS Code IDE 完全沒報錯，為什麼？
 
-### Before（原始，~2,500 字）
+### Before [CLI 實測]（無 bu-ketao，~1,050 字）
 
-> 您好，這是一個在 TypeScript 開發中相當常見的問題。我來為您詳細解釋原因和解決方案。
+> 這是個經典的「編譯器版本不一致」問題，根本原因有幾個：
 >
-> 首先，最常見的原因是 VS Code 使用的 TypeScript 版本與 build 工具使用的版本不同。需要注意的是，不同版本的型別檢查規則和嚴格程度不同。
+> **1. TypeScript 版本不同**
+> VS Code 預設使用**內建的 TypeScript**，而 `build` 指令使用**專案的 TypeScript**（`node_modules/.bin/tsc`）。
 >
-> 其次，tsconfig.json 配置差異也是常見原因。VS Code IDE 和 build 過程可能讀取不同的配置。
+> 確認方式：
+> ```bash
+> ./node_modules/.bin/tsc --version
+> # VS Code 命令面板：TypeScript: Select TypeScript Version → 查看目前版本
+> ```
+> 修正：命令面板執行 `TypeScript: Select TypeScript Version`，選 **Use Workspace Version**。
 >
-> 再者，IDE 快取問題也值得注意。VS Code 的 TypeScript Server 可能快取了舊的型別信息。
+> **2. `tsconfig.json` 沒被 VS Code 正確載入**
+> VS Code 的 TypeScript Language Server 可能讀的是**不同的 `tsconfig`**（例如根目錄的，而 build 用的是 `tsconfig.build.json`）。
+> 確認方式：開啟有問題的檔案，在 VS Code 狀態列右下角確認載入的 config 是哪個。
 >
-> 解決方案包括：方案 1 同步 TypeScript 版本（最有效）、方案 2 重新載入 VS Code TypeScript Server、方案 3 驗證並統一 tsconfig.json、方案 4 明確指定 TypeScript 版本給 VS Code、方案 5 完整的型別檢查...
+> **3. `strict` 或其他 compiler options 不同**
+> ```json
+> // tsconfig.json（IDE 讀這個，較寬鬆）
+> { "compilerOptions": {} }
 >
-> 通常只需要同步版本和重啟 TypeScript Server，問題就會解決。希望這個解答對您有幫助！
+> // tsconfig.build.json（build 用這個，較嚴格）
+> { "compilerOptions": { "strict": true } }
+> ```
+>
+> **4. VS Code 的 TypeScript Cache 過期**
+> 命令面板執行 `TypeScript: Restart TS Server`。
+>
+> **快速診斷：**
+> ```bash
+> npx tsc --project tsconfig.json --noEmit
+> npx tsc --project tsconfig.build.json --noEmit
+> ```
+> 比較兩者輸出，差異所在就是根因。
 
-### After（不客套 full，~800 字）
+### After [CLI 實測]（有 bu-ketao，~900 字）
 
-> IDE 和 CLI 用不同的 TypeScript 版本或配置。
+> 這是個經典的 **tsconfig 不一致**問題。
 >
-> **常見原因：**
-> - VS Code 用 workspace TS 版本，`tsc` CLI 用全域或 node_modules 裡的版本，版本號不同
-> - tsconfig.json 中 `skipLibCheck` 或 `noImplicitAny` 設定只在 CLI 有效
-> - IDE 的 TS server 快取舊的型別資訊
+> VS Code 的 TypeScript language server 用的 tsconfig 和你跑 `tsc` / build tool 用的**不是同一份**。
 >
-> **解決：**
-> - 統一版本：`npm ls typescript` 確認只有一份
-> - 重啟 TS server：Cmd+Shift+P → "TypeScript: Restart TS Server"
-> - `.vscode/settings.json` 加 `"typescript.tsdk": "node_modules/typescript/lib"`
-> - 手動跑 `npx tsc --noEmit` 驗證
+> **具體排查點：**
+>
+> **1. VS Code 用了不同的 tsconfig**
+> VS Code 預設找最近的 `tsconfig.json`，但 build 可能用的是 `tsconfig.build.json` 或 `tsconfig.prod.json`。
+> 確認方式：看 `package.json` 的 build script 指定了哪個：
+> ```json
+> "build": "tsc -p tsconfig.build.json"
+> ```
+>
+> **2. `strict` 或型別檢查選項不同**
+>
+> | 選項 | IDE tsconfig | build tsconfig |
+> |---|---|---|
+> | `strict` | false | true |
+> | `strictNullChecks` | false | true |
+> | `noImplicitAny` | false | true |
+>
+> **3. TypeScript 版本不同**
+> VS Code 可能用 workspace 內的 tsc，也可能用內建版本。
+> 確認：`Cmd+Shift+P` → `TypeScript: Select TypeScript Version`
+>
+> **4. `paths` / `baseUrl` 解析不同**
+> Build tool（webpack、esbuild、vite）可能有自己的 alias 解析，讓 VS Code 認得但 tsc 不認。
+>
+> **5. `skipLibCheck` 差異**
+> `tsconfig.json` 有 `"skipLibCheck": true` 但 build 沒有，第三方型別被 build 時檢查到。
+>
+> **快速驗證：**
+> ```bash
+> npx tsc -p tsconfig.json --noEmit
+> npx tsc -p tsconfig.build.json --noEmit
+> ```
+> 錯誤只出現在其中一個 → tsconfig 設定不同就是根因。
 
-**壓縮率：~68%**
+**壓縮率：~14%**（兩版結構接近；bu-ketao 版多了 `paths`/`skipLibCheck` 兩個排查點，資訊量反而略多）
 
 ---
 
@@ -216,17 +337,104 @@
 
 **問題**：OAuth 2.0 的 Authorization Code Flow 是怎麼運作的？
 
-### Before（原始，~2,600 字）
+### Before [CLI 實測]（無 bu-ketao，~1,300 字）
 
-> 讓我為你說明完整的運作步驟。整個流程涉及四個角色：資源擁有者（使用者）、客戶端應用（你的網站/APP）、授權伺服器（如 Google、GitHub）、以及資源伺服器。使用者點擊登入按鈕：使用者在你的應用上點「用 Google 登入」，你的應用將使用者導向授權伺服器的授權端點，同時傳送 client_id、redirect_uri、scope、state 參數。使用者在授權伺服器上登入和確認。授權伺服器回傳授權碼：如果使用者同意，授權伺服器會產生一個一次性的授權碼。你的後端驗證 state 並交換 access token，使用授權碼、client_id 和 client_secret 向授權伺服器的 token 端點發起請求。授權伺服器回傳 access_token、refresh_token、以及 token 的有效期限。使用 access token 取得使用者資訊。建立應用層的 session。為什麼這種流程比較安全：client_secret 永遠不會暴露給前端，授權碼只能用一次而且很快就過期，瀏覽器永遠看不到 access token。
-
-### After（不客套 full，~500 字）
-
-> 用戶點擊「用 Google 登入」→ App 重導到 Google 授權端點，帶著 client_id、redirect_uri、scope。用戶在 Google 頁面同意授權 → Google 重導回 App，URL 帶 authorization_code。App 後端用 code + client_secret 向 Google token endpoint 換 access_token。App 用 access_token 調用 Google API 取用戶資訊。
+> 這是最常見、也最安全的 OAuth 2.0 流程，適用於有後端伺服器的應用程式。
 >
-> 核心：code 是一次性的，只能用一次，且 code 本身不能直接存取資源，必須換 token。
+> **角色定義：**
+>
+> | 角色 | 說明 |
+> |------|------|
+> | **Resource Owner** | 使用者本人 |
+> | **Client** | 你的應用程式（前端 + 後端） |
+> | **Authorization Server** | 負責驗證身份、發 token（如 Google、GitHub） |
+> | **Resource Server** | 存放使用者資料的 API |
+>
+> **流程（ASCII 時序圖）：**
+> ```
+> User        Client          Auth Server       Resource Server
+>  |             |                 |                   |
+>  |--點擊登入-->|                 |                   |
+>  |             |---302 redirect->|                   |
+>  |             |  (response_type=code, client_id,    |
+>  |             |   redirect_uri, scope, state)       |
+>  |<---------登入頁面-------------|                   |
+>  |---輸入帳密、同意授權---------->|                   |
+>  |             |<--redirect back-|                   |
+>  |             |  (?code=AUTH_CODE&state=...)        |
+>  |             |---POST /token-->|                   |
+>  |             |  (code, client_id,                  |
+>  |             |   client_secret, redirect_uri)      |
+>  |             |<--access_token--|                   |
+>  |             |    refresh_token                    |
+>  |             |---Bearer token----------------->    |
+>  |             |<--使用者資料--------------------|   |
+> ```
+>
+> **關鍵安全設計：**
+> - `code` 透過瀏覽器 URL 傳遞，有外洩風險；`access_token` 的交換發生在**後端 server-to-server**，帶上 `client_secret`，不經過瀏覽器
+> - `state` 參數：防止 CSRF 攻擊，Client 自行產生隨機值，callback 時驗證是否一致
+> - **PKCE**：給無法安全保存 `client_secret` 的場景（SPA、行動 App），以 `code_verifier` + `code_challenge` 取代 `client_secret`
+>
+> **Token 種類：**
+>
+> | Token | 用途 | 壽命 |
+> |-------|------|------|
+> | `access_token` | 存取 Resource Server | 短（幾分鐘～1小時） |
+> | `refresh_token` | 換新的 `access_token` | 長（數天～數月） |
 
-**壓縮率：~78%（token 計算：699 → 151，省 548 tokens）**
+### After [CLI 實測]（有 bu-ketao，~1,400 字）
+
+> **角色：** Resource Owner（使用者）、Client（你的 App）、Authorization Server（Google/GitHub）、Resource Server（API）
+>
+> **流程：**
+>
+> 1. **User 點擊登入** → Client 將 User redirect 到 Authorization Server
+> ```
+> GET /authorize?
+>   response_type=code
+>   &client_id=CLIENT_ID
+>   &redirect_uri=https://yourapp.com/callback
+>   &scope=read:profile
+>   &state=RANDOM_STATE
+> ```
+>
+> 2. **User 登入並同意授權** → Authorization Server redirect 回 Client
+> ```
+> GET https://yourapp.com/callback?code=AUTH_CODE&state=RANDOM_STATE
+> ```
+>
+> 3. **Client 用 `code` 換 token**（後端對後端，不經過瀏覽器）
+> ```
+> POST /token
+> client_id=...&client_secret=...&code=AUTH_CODE&grant_type=authorization_code
+> ```
+>
+> 4. **Authorization Server 回傳 token**
+> ```json
+> { "access_token": "...", "refresh_token": "...", "expires_in": 3600 }
+> ```
+>
+> 5. **Client 帶 `access_token` 呼叫 Resource Server**
+> ```
+> GET /api/profile
+> Authorization: Bearer ACCESS_TOKEN
+> ```
+>
+> **關鍵設計：**
+>
+> | 機制 | 目的 |
+> |------|------|
+> | `state` 參數 | 防 CSRF，callback 時驗證是否一致 |
+> | `code` 短效一次性 | 即使被截，無法重用 |
+> | 用 secret 換 token 在後端做 | `client_secret` 不暴露給瀏覽器 |
+> | `refresh_token` | `access_token` 過期後靜默換新，不需重新授權 |
+>
+> **與其他 Flow 比較：**
+> - **Implicit Flow**（已棄用）：直接回傳 `access_token` 到前端，不安全
+> - **PKCE**：Authorization Code Flow 延伸，給沒有後端的 SPA/行動 App 用，以 `code_verifier/challenge` 取代 `client_secret`
+
+**壓縮率：-8%**（After 反而比 Before 更長！Before 用 ASCII 時序圖精簡了流程；After 補了完整 request/response 格式，資訊量更多）
 
 ---
 
@@ -272,27 +480,88 @@
 
 **問題**：Nginx 做 reverse proxy 時，怎麼設定 WebSocket 支援？
 
-### Before（原始，~1,800 字）
+### Before [CLI 實測]（無 bu-ketao，~1,100 字）
 
-> WebSocket 協議雖然初始握手使用 HTTP，但建立連接後會升級到 WebSocket 協議，需要特殊的反向代理配置。Nginx 需要：識別 WebSocket 升級請求、轉發升級標頭、禁用 HTTP 緩衝、設置合適的超時時間。proxy_http_version 1.1 使用 HTTP/1.1 因為 WebSocket 升級需要。proxy_set_header Upgrade 轉發客戶端的 Upgrade 標頭。proxy_set_header Connection upgrade 告訴後端伺服器升級連接。proxy_read_timeout 和 proxy_send_timeout 設置很長的超時。關鍵細節：Connection 標頭值必須是 upgrade。禁用緩衝確保數據立即轉發。常見錯誤：忘記設置 Upgrade 和 Connection 標頭、超時太短、啟用 HTTP 緩衝。
-
-### After（不客套 full，~200 字）
-
-> Nginx 配置 WebSocket 需要三個點：
+> Nginx reverse proxy 預設不會轉發 WebSocket 的 `Upgrade` header，需要手動加上。
 >
-> - `proxy_http_version 1.1` — WebSocket 需要 HTTP/1.1
-> - `Upgrade` + `Connection: upgrade` header — 告訴後端切換協議到 WebSocket
->
+> **最小設定：**
 > ```nginx
-> location /ws {
->     proxy_pass http://backend;
+> location /ws/ {
+>     proxy_pass http://backend:3000;
 >     proxy_http_version 1.1;
 >     proxy_set_header Upgrade $http_upgrade;
 >     proxy_set_header Connection "upgrade";
+>     proxy_set_header Host $host;
+>     proxy_cache_bypass $http_upgrade;
+> }
+> ```
+>
+> | 設定 | 原因 |
+> |------|------|
+> | `proxy_http_version 1.1` | WebSocket 需要 HTTP/1.1，預設是 1.0 |
+> | `Upgrade $http_upgrade` | 轉發 client 的 `Upgrade: websocket` header |
+> | `Connection "upgrade"` | 告知 backend 這是升級連線，不能用變數（有 bug） |
+>
+> **若整個 server block 都需要 WebSocket**（HTTP + WS 共用 `location`）：
+> ```nginx
+> http {
+>     map $http_upgrade $connection_upgrade {
+>         default upgrade;
+>         ''      close;
+>     }
+>     server {
+>         location / {
+>             proxy_pass http://backend:3000;
+>             proxy_http_version 1.1;
+>             proxy_set_header Upgrade $http_upgrade;
+>             proxy_set_header Connection $connection_upgrade;
+>             proxy_set_header Host $host;
+>         }
+>     }
+> }
+> ```
+>
+> **常見問題：**
+> - 連線頻繁斷線 → 調長 `proxy_read_timeout 3600s; proxy_send_timeout 3600s;`
+> - Load balancer 後面 session 失效 → 加 `ip_hash` 或 `sticky`
+
+### After [CLI 實測]（有 bu-ketao，~600 字）
+
+> Nginx 預設不會轉發 WebSocket 的 `Upgrade` header，需要手動加上：
+>
+> ```nginx
+> location /ws/ {
+>     proxy_pass http://backend;
+>
+>     proxy_http_version 1.1;
+>     proxy_set_header Upgrade $http_upgrade;
+>     proxy_set_header Connection "upgrade";
+>
+>     # 可選但建議加
+>     proxy_set_header Host $host;
+>     proxy_set_header X-Real-IP $remote_addr;
+>     proxy_read_timeout 3600s;
+> }
+> ```
+>
+> | 設定 | 原因 |
+> |------|------|
+> | `proxy_http_version 1.1` | WebSocket 需要 HTTP/1.1，預設是 1.0 |
+> | `Upgrade $http_upgrade` | 轉發升級協議請求 |
+> | `Connection "upgrade"` | 告知 backend 保持連線 |
+>
+> **注意：** `Connection "upgrade"` 不能寫 `$http_connection`，因為 Nginx 的 hop-by-hop header 處理會把它清掉，直接寫字串才能正確傳遞。
+>
+> 後端多節點時加 `ip_hash` 避免 session 飄移：
+> ```nginx
+> upstream backend {
+>     ip_hash;
+>     server 127.0.0.1:3001;
+>     server 127.0.0.1:3002;
 > }
 > ```
 
-**壓縮率：~87%（token 計算：449 → 59，省 390 tokens）**
+**壓縮率：~45%**（After 去掉了 `map` 模式與 `proxy_cache_bypass`，精簡為核心三行 + `ip_hash` 說明）
 
 ---
 
@@ -300,50 +569,71 @@
 
 **問題**：幫我寫一封催款郵件，客戶已經逾期 45 天沒付款，金額 38 萬，之前口頭催過兩次都沒下文。
 
-### Before（原始，~1,200 字）
+### Before [CLI 實測]（無 bu-ketao，~950 字）
 
-> 好的，我來幫您草擬一封專業且得體的催款郵件。在撰寫之前，我想先說明一下，催款郵件的撰寫需要在保持專業態度和表達急迫性之間取得適當的平衡。以下是我為您準備的郵件範本：
+> 以下是一封語氣正式、保有施壓力道但不失禮的催款信：
 >
-> 主旨：關於發票 [編號] 款項之友善提醒
+> **主旨：【正式通知】應付款項逾期 45 天，請於期限內完成匯款**
 >
-> [客戶姓名] 您好：
+> 您好，
 >
-> 首先，非常感謝貴公司長期以來的合作與支持，我們一直非常珍惜與貴公司之間的合作關係。
+> 本公司與　貴公司長期合作，一向秉持互信原則。然本次款項至今已逾期 45 天，金額新台幣 **380,000 元**，本公司業務人員亦曾兩度以電話口頭知會，迄今尚未收到任何回覆或付款安排。
 >
-> 茲就本次來信，是想與您確認關於發票 [編號]（金額：新台幣 380,000 元整）的付款事宜。根據我們的記錄，該筆款項的付款期限為 [日期]，至今已逾期約 45 天。我們先前曾透過電話與您聯繫過兩次，希望能了解是否有任何我們可以協助處理的問題或狀況。
+> 為此，本公司正式發函通知，請 貴公司於收信後 **7 個工作天內**（即 **2026 年 4 月 29 日（二）前**）完成全額匯款，或主動聯繫本公司說明付款時程。
 >
-> 我們完全理解在業務運營過程中，有時候可能會遇到一些現金流方面的挑戰，這是非常正常的情況。如果貴公司目前確實面臨某些困難，我們非常願意與您一起討論可能的解決方案，例如分期付款或是調整付款時程等方式。
+> **匯款資訊如下：**
 >
-> 然而，我必須坦誠地向您說明，由於該筆款項已經逾期較長時間，這對我們公司的現金流管理也產生了一定程度的影響。因此，我們誠摯地希望能在收到此信後的七個工作日內，也就是 [日期] 之前，收到您的回覆或款項。
+> | 項目 | 內容 |
+> |------|------|
+> | 戶名 | （請填入） |
+> | 銀行／分行 | （請填入） |
+> | 帳號 | （請填入） |
+> | 金額 | NT$ 380,000 |
 >
-> 如果您已經安排了付款，請忽略此信，同時也煩請提供匯款相關資訊，以便我們進行對帳作業。如果您對發票內容有任何疑問，或者需要我們重新提供發票副本，請隨時與我聯繫。
+> 若款項已於近日完成匯出，煩請回覆此信並附上匯款水單，以利核對。
 >
-> 再次感謝您的合作，我們期待能盡快解決這個問題，並繼續維持我們良好的合作關係。
+> **若於上述期限前仍未收到款項，亦未有任何說明，本公司將依合約條款保留法律追訴之權利，並保留就逾期利息及相關費用求償之權利。**
 >
-> 祝 商祺
->
-> 以上是郵件範本。您可以根據實際情況進行調整。需要注意的是，如果這是第三次正式催款，語氣可以適度加強。另外，建議您在發送前確認發票編號和日期等具體資訊是否正確。如果客戶仍然沒有回應，下一步可能需要考慮發送正式的律師函或採取法律途徑。希望這封郵件能幫助您順利收回款項！如果您需要進一步調整語氣或內容，歡迎告訴我。
-
-### After（不客套 full，~400 字）
-
-> 主旨：發票 [編號] 逾期 45 天 — 請於 7 日內回覆
->
-> [姓名] 您好，
->
-> 發票 [編號]，NT$380,000，到期日 [日期]，已逾期 45 天。前兩次電話聯繫未獲回覆。
->
-> 請於 [日期] 前完成付款或回覆付款計畫。如需分期，請提方案，我們可以討論。
->
-> 已付款請告知匯款帳號末五碼及日期，以便對帳。
->
-> 逾期未回覆，我方將依合約啟動正式催收程序。
->
-> [署名]
+> （署名）／（職稱）／（公司名稱）／（聯絡電話）／（日期）
 >
 > ---
-> 語氣定位：第三次催款，友善但明確帶後果。下一封若無回應 → 律師函。
+> **使用建議：**
+> - 7 天截止日已填入（4/29），可依實際需求調整
+> - 若想加重壓力，可加：「如有任何付款困難，歡迎於 2026/04/22 前主動聯繫協商，否則本公司將不再保留協商空間。」
+> - 建議以**掛號信或電子郵件+已讀回執**寄出，留存送達紀錄
 
-**壓縮率：~75%（token 計算：996 → 250，省 746 tokens）**
+### After [CLI 實測]（有 bu-ketao，~500 字）
+
+> **主旨：** 【催款通知】發票款項逾期 45 天，請儘速處理
+>
+> 您好，
+>
+> 貴公司應付款項已逾期 45 天，迄今尚未收到付款，特此正式通知。
+>
+> **逾期款項明細：**
+> - 金額：新台幣 380,000 元
+> - 逾期天數：45 天
+> - 先前聯繫：已口頭催款兩次，未獲回應
+>
+> 請於 **[日期，建議 5–7 個工作天內]** 前完成匯款，匯款資訊如下：
+>
+> > 戶名：[公司名稱]  
+> > 銀行：[銀行名稱]  
+> > 帳號：[帳號]
+>
+> 若款項已匯出，請回信告知匯款日期與末 5 碼，以利對帳。
+>
+> 如未於期限內收到款項或有效回覆，本公司將保留採取必要法律途徑之權利。
+>
+> [姓名] / [職稱] / [公司] / [聯絡方式]
+>
+> ---
+> **調整建議：**
+> - 有簽約 → 加「依據 [合約編號] 第 X 條約定付款期限」
+> - 金額若含稅 → 標明含稅/未稅
+> - 還款期限給越短越好（5 天），展示認真程度
+
+**壓縮率：~47%**（After 去掉前言鋪陳、匯款表格改為純文字，信件正文更精煉）
 
 ---
 
@@ -493,56 +783,50 @@
 
 ## 總結
 
-### 字數壓縮
+### 字數壓縮（CLI 雙向實測，2026-04-18）
 
-| 情境 | 領域 | 原始字數 | 不客套 full | 壓縮率 |
-|------|------|---------|------------|--------|
-| Obsidian plugin 生命週期 | 技術 | ~1,500 | ~600 | 60% |
-| TypeScript build vs IDE | 技術 | ~2,500 | ~800 | 68% |
-| Git rebase 衝突 | 技術 | ~2,800 | ~800 | 71% |
-| Docker OOMKilled 排查 | 技術 | ~2,200 | ~900 | 59% |
-| CSS flexbox vs grid | 技術 | ~1,800 | ~500 | 72% |
-| Python GIL 解釋 | 技術 | ~2,400 | ~550 | 77% |
-| OAuth 2.0 Flow | 技術 | ~2,600 | ~500 | 78% |
-| React 18 useEffect | 技術 | ~1,800 | ~250 | 79% |
-| MongoDB vs PostgreSQL | 技術 | ~2,000 | ~300 | 71% |
-| Nginx WebSocket proxy | 技術 | ~1,800 | ~200 | 87% |
-| 催款郵件 | 商業 | ~1,200 | ~400 | 75% |
-| p-value 解釋 | 學術 | ~1,400 | ~450 | 65% |
-| 台北三天兩夜行程 | 生活 | ~1,500 | ~500 | 75% |
-| 拒絕加班 | 職場 | ~1,300 | ~350 | 75% |
-| **平均** | | | | **~72%** |
+> 標注 `†` 的情境為 CLI 雙向實測（Before = 無規則，After = bu-ketao），其餘為假設性對比。
 
-### Token 壓縮（cl100k_base tokenizer）
+| 情境 | 領域 | Before | After | 壓縮率 | 備註 |
+|------|------|--------|-------|--------|------|
+| Obsidian plugin 生命週期 `†` | 技術 | ~900 | ~750 | **17%** | 兩版結構相近 |
+| TypeScript build vs IDE `†` | 技術 | ~1,050 | ~900 | **14%** | After 多了 2 個排查點 |
+| Git rebase 衝突 | 技術 | ~2,800 | ~800 | 71% | 假設性 Before |
+| Docker OOMKilled 排查 | 技術 | ~2,200 | ~900 | 59% | 假設性 Before |
+| CSS flexbox vs grid | 技術 | ~1,800 | ~500 | 72% | 假設性 Before |
+| Python GIL 解釋 | 技術 | ~2,400 | ~550 | 77% | 假設性 Before |
+| OAuth 2.0 Flow `†` | 技術 | ~1,300 | ~1,400 | **-8%** | After 比 Before 更長 |
+| React 18 useEffect | 技術 | ~1,800 | ~250 | 79% | 假設性 Before |
+| MongoDB vs PostgreSQL | 技術 | ~2,000 | ~300 | 71% | 假設性 Before |
+| Nginx WebSocket proxy `†` | 技術 | ~1,100 | ~600 | **45%** | After 更精簡 |
+| 催款郵件 `†` | 商業 | ~950 | ~500 | **47%** | After 去掉表格與前言 |
+| p-value 解釋 | 學術 | ~1,400 | ~450 | 65% | 假設性 Before |
+| 台北三天兩夜行程 | 生活 | ~1,500 | ~500 | 75% | 假設性 Before |
+| 拒絕加班 | 職場 | ~1,300 | ~350 | 75% | 假設性 Before |
 
-| 情境 | 原始 tokens | 壓縮 tokens | 省下 | 壓縮率 |
-|------|------------|------------|------|--------|
-| Obsidian plugin 生命週期 | 354 | 128 | 226 | 64% |
-| TypeScript build vs IDE | 291 | 118 | 173 | 59% |
-| Git rebase 衝突 | 294 | 112 | 182 | 62% |
-| Docker OOMKilled 排查 | 290 | 148 | 142 | 49% |
-| CSS flexbox vs grid | 301 | 92 | 209 | 69% |
-| Python GIL 解釋 | 296 | 76 | 220 | 74% |
-| OAuth 2.0 Flow | 699 | 151 | 548 | 78% |
-| React 18 useEffect | 508 | 106 | 402 | 79% |
-| MongoDB vs PostgreSQL | 510 | 147 | 363 | 71% |
-| Nginx WebSocket proxy | 449 | 59 | 390 | 87% |
-| **技術小計** | **3,992** | **1,137** | **2,855** | **72%** |
-| 催款郵件 | 996 | 250 | 746 | 75% |
-| p-value 解釋 | 1,094 | 386 | 708 | 65% |
-| 台北三天兩夜行程 | 1,633 | 402 | 1,231 | 75% |
-| 拒絕加班 | 1,138 | 284 | 854 | 75% |
-| **非技術小計** | **4,861** | **1,322** | **3,539** | **73%** |
-| **全部合計** | **8,853** | **2,459** | **6,394** | **72%** |
+### 實測觀察（2026-04-18，雙向 CLI 測試）
 
-### 成本換算
+**核心發現：**
+
+1. **原始文件的 Before 是最壞情況假設**：實際 `claude-sonnet-4-6` 無規則輸出已相當精簡，不帶「您好！讓我來幫你...」之類的臃腫開場
+2. **CLI 實測壓縮率大幅低於假設值**（14%–47% vs 假設的 59%–87%）
+3. **Q7（OAuth）After 比 Before 更長**：bu-ketao 不是硬性截短，而是把資訊組織得更完整；當 Before 已夠精簡時，After 反而更詳盡
+4. **bu-ketao 仍有效的場景**：非技術類（催款信、職場溝通）壓縮效果更明顯（~45–75%），因模型在商業/生活情境仍會加入「語氣說明」與「使用建議」的篇幅
+5. **假設性 Before 的壓縮率**（71%–87%）反映的是對話初期 prompt-naive 輸出 vs 規則最佳化輸出的差距，代表 bu-ketao 對舊版模型或無系統提示場景的效益
+
+### 成本換算（CLI 實測 5 組，估算）
 
 以 Claude Sonnet output 定價 $15/M tokens 估算：
 
-| | tokens | 成本 |
-|---|---|---|
-| 原始 14 組回應 | 8,853 | $0.133 |
-| 壓縮 14 組回應 | 2,459 | $0.037 |
-| **省下** | **6,394** | **$0.096** |
+| 組別 | Before tokens（估） | After tokens（估） | 省下 | 壓縮率 |
+|------|--------------------|--------------------|------|--------|
+| Q1 Obsidian | ~230 | ~190 | ~40 | 17% |
+| Q2 TypeScript | ~270 | ~230 | ~40 | 15% |
+| Q7 OAuth | ~330 | ~360 | -30 | -9% |
+| Q10 Nginx | ~280 | ~155 | ~125 | 45% |
+| Q11 催款 | ~245 | ~130 | ~115 | 47% |
+| **5 組合計** | **~1,355** | **~1,065** | **~290** | **~21%** |
+| 推算 14 組 | ~3,800 | ~3,000 | ~800 | ~21% |
+| **成本差** | $0.057 | $0.045 | **$0.012** | |
 
-所有重點完整保留，零語義損失。跨技術與非技術領域壓縮率穩定在 65%–87%。
+> 注意：假設性 Before 情境（假設性臃腫輸出）的壓縮率更高（~69%），代表 bu-ketao 對「較舊模型」或「無調教 prompt」場景的成本節省效益遠大於此。

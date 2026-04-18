@@ -2,14 +2,14 @@
 
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 [![繁體中文](https://img.shields.io/badge/lang-Traditional_Chinese-red.svg)](#)
-[![Compression](https://img.shields.io/badge/compression-~72%25-brightgreen.svg)](#test-results)
+[![Compression](https://img.shields.io/badge/compression-~21--72%25-brightgreen.svg)](#test-results)
 [![Claude Code](https://img.shields.io/badge/Claude_Code-skill-blueviolet.svg)](rules/CLAUDE.md)
 [![ChatGPT](https://img.shields.io/badge/ChatGPT-compatible-74aa9c.svg)](rules/system-prompt.md)
 [![Cursor](https://img.shields.io/badge/Cursor-compatible-000.svg)](rules/cursorrules)
 
 [繁體中文](README.md)
 
-**Strip the 客套 (pleasantries) from Chinese LLM output. ~72% compression, zero semantic loss.**
+**Strip the 客套 (pleasantries) from Chinese LLM output. ~21-72% compression range, zero semantic loss.**
 
 "bu-ketao" (不客套) literally means "no pleasantries" in Chinese. Chinese LLMs are verbose in fundamentally different ways than English ones — there are no articles (a/an/the) to drop. The fluff has entirely different sources, so the compression rules must be different too.
 
@@ -78,25 +78,48 @@ We identified **10 textual verbosity patterns + 3 behavioral patterns** specific
 
 ## Test Results
 
-Tested across 10 real development scenarios with Claude. Token counts via cl100k_base tokenizer:
+Latest report (2026-04-18) uses a mixed methodology:
 
-| Scenario | Verbose tokens | Compressed tokens | Saved | Compression |
-|----------|---------------|-------------------|-------|-------------|
-| Obsidian plugin lifecycle | 354 | 128 | 226 | 64% |
-| TypeScript build vs IDE error | 291 | 118 | 173 | 59% |
-| Git rebase conflicts | 294 | 112 | 182 | 62% |
-| Docker OOMKilled debugging | 290 | 148 | 142 | 49% |
-| CSS flexbox vs grid | 301 | 92 | 209 | 69% |
-| Python GIL explained | 296 | 76 | 220 | 74% |
-| OAuth 2.0 Flow | 699 | 151 | 548 | 78% |
-| React 18 useEffect | 508 | 106 | 402 | 79% |
-| MongoDB vs PostgreSQL | 510 | 147 | 363 | 71% |
-| Nginx WebSocket proxy | 449 | 59 | 390 | 87% |
-| **Total** | **3,992** | **1,137** | **2,855** | **72%** |
+- `†`: bidirectional CLI measurement (Before = no bu-ketao rules, After = bu-ketao enabled)
+- Others: hypothetical verbose Before baseline (for legacy or prompt-naive outputs)
 
-At Claude Sonnet output pricing ($15/M tokens), 50 conversations/day = **~5.2M tokens saved/year ≈ $78**.
+| Scenario | Domain | Before | After | Compression | Notes |
+|----------|--------|--------|-------|-------------|-------|
+| Obsidian plugin lifecycle `†` | Technical | ~900 | ~750 | **17%** | Similar structure |
+| TypeScript build vs IDE `†` | Technical | ~1,050 | ~900 | **14%** | After adds 2 diagnostics |
+| Git rebase conflicts | Technical | ~2,800 | ~800 | 71% | Hypothetical Before |
+| Docker OOMKilled debugging | Technical | ~2,200 | ~900 | 59% | Hypothetical Before |
+| CSS flexbox vs grid | Technical | ~1,800 | ~500 | 72% | Hypothetical Before |
+| Python GIL explained | Technical | ~2,400 | ~550 | 77% | Hypothetical Before |
+| OAuth 2.0 Flow `†` | Technical | ~1,300 | ~1,400 | **-8%** | After is longer |
+| React 18 useEffect | Technical | ~1,800 | ~250 | 79% | Hypothetical Before |
+| MongoDB vs PostgreSQL | Technical | ~2,000 | ~300 | 71% | Hypothetical Before |
+| Nginx WebSocket proxy `†` | Technical | ~1,100 | ~600 | **45%** | After is tighter |
+| Payment reminder email `†` | Business | ~950 | ~500 | **47%** | Removes framing/table |
+| p-value explanation | Academic | ~1,400 | ~450 | 65% | Hypothetical Before |
+| Taipei 3D2N itinerary | Lifestyle | ~1,500 | ~500 | 75% | Hypothetical Before |
+| Refusing overtime | Workplace | ~1,300 | ~350 | 75% | Hypothetical Before |
+
+Observed in latest runs:
+
+1. Modern `claude-sonnet-4-6` is already concise without rules, so real CLI compression is lower than early assumptions.
+2. bu-ketao is not hard truncation. If Before is already concise (OAuth case), After can be longer but more complete.
+3. Non-technical writing still shows clear gains (for example payment reminder email).
 
 Full before/after: [`examples/before-after.md`](examples/before-after.md)
+
+### Cost Estimate
+
+Estimated with Claude Sonnet output pricing ($15/M tokens):
+
+| | tokens | cost |
+|---|---|---|
+| 5 CLI pairs Before (est.) | ~1,355 | $0.020 |
+| 5 CLI pairs After (est.) | ~1,065 | $0.016 |
+| **Saved on 5 CLI pairs** | **~290** | **$0.004** |
+| Extrapolated 14 Before (est.) | ~3,800 | $0.057 |
+| Extrapolated 14 After (est.) | ~3,000 | $0.045 |
+| **Saved on extrapolated 14** | **~800** | **$0.012** |
 
 ### Token Economics
 
@@ -112,6 +135,45 @@ Chinese characters cost more tokens than English in most tokenizers:
 **Every Chinese character you cut saves more tokens than cutting an English word.** The ROI of Chinese compression is higher than English.
 
 ## Usage
+
+### One-click Install Scripts
+
+Two scripts cover common install paths for AI tools.
+
+Risk notice:
+- Running `bash <(curl ...)` directly has supply chain risk. If the downloaded content is tampered with, it can write malicious instructions into local AI config files.
+- Prefer download-then-run, inspect the script first, and pin to a commit URL or verify SHA256 in production environments.
+- `install-commadns.sh` overwrites existing target files. Back up customized commands before running it.
+
+#### Install Agents Rules (CLAUDE.md / AGENTS.md)
+
+Applicable: Claude Code, Copilot Coding Agent, Codex, Cursor, Kiro
+
+```bash
+# Run from remote (convenient, higher risk)
+bash <(curl -fsSL https://raw.githubusercontent.com/lazyjerry/bu-ketao/refs/heads/main/install-script/install-agents.sh)
+```
+
+```bash
+# Or download first (recommended)
+curl -fsSL https://raw.githubusercontent.com/lazyjerry/bu-ketao/refs/heads/main/install-script/install-agents.sh -o install-agents.sh
+bash install-agents.sh
+```
+
+#### Install Slash Command (bu-ketao.md)
+
+Applicable: Claude Code, Copilot, Codex, Cursor, Kiro
+
+```bash
+# Run from remote (convenient, higher risk)
+bash <(curl -fsSL https://raw.githubusercontent.com/lazyjerry/bu-ketao/refs/heads/main/install-script/install-commadns.sh)
+```
+
+```bash
+# Or download first (recommended)
+curl -fsSL https://raw.githubusercontent.com/lazyjerry/bu-ketao/refs/heads/main/install-script/install-commadns.sh -o install-commadns.sh
+bash install-commadns.sh
+```
 
 ### Claude Code — Global Rules (CLAUDE.md)
 
