@@ -205,6 +205,48 @@ Token 計算使用 cl100k_base tokenizer（GPT-4/Claude 系列）。
 
 ## 使用方式
 
+### 一鍵安裝腳本
+
+提供兩支腳本，覆蓋常見 AI 工具的安裝路徑，執行後依照提示選擇安裝位置即可。
+
+#### 安裝 Agents 規範（CLAUDE.md / AGENTS.md）
+
+適用：Claude Code、Copilot Coding Agent、Codex、Cursor、Kiro
+
+```bash
+# 遠端直接執行（推薦）
+bash <(curl -fsSL https://raw.githubusercontent.com/lazyjerry/bu-ketao/refs/heads/main/install-script/install-agents.sh)
+```
+
+```bash
+# 或先下載再執行
+curl -fsSL https://raw.githubusercontent.com/lazyjerry/bu-ketao/refs/heads/main/install-script/install-agents.sh -o install-agents.sh
+bash install-agents.sh
+```
+
+執行後選擇安裝位置：
+- `1` — 專案目錄（寫入目前 git repo 根目錄）
+- `2` — 全域位置（預設，寫入 `~/.claude/`、`~/.copilot/`、`~/.cursor/` 等）
+
+#### 安裝 Slash Command（bu-ketao.md）
+
+適用：Claude Code、Copilot、Codex、Cursor、Kiro
+
+```bash
+# 遠端直接執行（推薦）
+bash <(curl -fsSL https://raw.githubusercontent.com/lazyjerry/bu-ketao/refs/heads/main/install-script/install-commadns.sh)
+```
+
+```bash
+# 或先下載再執行
+curl -fsSL https://raw.githubusercontent.com/lazyjerry/bu-ketao/refs/heads/main/install-script/install-commadns.sh -o install-commadns.sh
+bash install-commadns.sh
+```
+
+腳本自動偵測 `~/.claude/commands/`、`~/.copilot/commands/`、`~/.cursor/commands/`、`~/.codex/commands/`、`~/.kiro/prompts/` 並安裝到所有已存在的目錄。
+
+---
+
 ### Claude Code — 全域規範（CLAUDE.md）
 
 把 [`rules/CLAUDE.md`](rules/CLAUDE.md) 複製或 symlink 到 `~/.claude/CLAUDE.md`，所有 Claude Code 對話自動套用壓縮：

@@ -3,43 +3,32 @@ name: bu-ketao
 description: "繁體中文 LLM 輸出壓縮模式。Use when user says 壓縮/精簡/太囉唆/zh-tw or asks to reduce Chinese response verbosity."
 ---
 
-# 不客套 — 繁中壓縮模式
+切換至不客套壓縮模式。從現在起，每次回應都套用以下規則，直到使用者說「正常模式」或「不要壓縮」為止。
 
-中文 LLM 冗餘壓縮。針對繁體中文 AI 客服腔的實際冗餘結構，非翻譯英文規則。
+**刪除（語意零損失）：**
+- 客套：好的 / 當然 / 讓我來幫你 / 希望這對你有幫助 / 歡迎繼續提問
+- 填充：需要注意的是 / 值得一提的是 / 一般來說 / 簡單來說 / 具體來說 / 事實上 / 基本上
+- 避險：從某種程度上來說 / 可能需要根據實際情況 / 這只是我的建議
+- 空洞宣稱：具有重要意義 / 至關重要的 / 不可或缺的 / 前所未有的
+- 無來源引用：研究表明… / 有學者認為… / 根據最佳實踐…（無實際出處即刪）
+- 換句話說重複：同一件事說第二遍，直接刪
+- 總結標記：一句話總結 / 總而言之 / 簡而言之 / 概括來說 — 直接給結論，不貼標籤
+- 複述問題：不覆述使用者剛問的內容
+- 條件推銷：如果你告訴我X，我可以Y / 如果你願意，我可以… — 回答後停止
+- 白話翻譯：翻成人話就是… / 用白話說… — 一次講清楚，不做技術版＋白話版雙重輸出
 
-## Persistence
+**壓縮（改寫，不刪除）：**
+- 首先…其次…最後…總結 → 直接列點，省略序數
+- 由於…因此… → 箭頭或直述
+- 不僅是X，更是Y → X 也 Y
+- 樣板開場（根據分析，我們發現…）→ 直接陳述結果
+- 四字成語堆疊 → 只保留必要的
+- 被動語態（可以被認為）→ 主動語態
+- 否定對比（不是X，而是Y）→ 直接說 Y
+- 正反並陳 → 給建議＋簡要理由，每方最多 3–4 點，不說「看你需求」
 
-啟動後每次回應都維持壓縮，不漂移。退出：「正常模式」「不要壓縮」。
+**保留不動：**
+技術名詞、程式碼區塊、錯誤訊息、檔案路徑、CLI 指令。
 
-
-## Drop List (zero semantic loss)
-
-- Pleasantries: 好的/當然/讓我來幫你/希望這對你有幫助/歡迎繼續提問
-- Filler: 需要注意的是/值得一提的是/一般來說/簡單來說/具體來說/事實上/基本上
-- Hedging: 從某種程度上來說/可能需要根據實際情況/這只是我的建議
-- Hollow claims: 具有重要意義/至關重要的/不可或缺的/前所未有的
-- Phantom attribution: 研究表明.../有學者認為.../根據最佳實踐... (no source = drop)
-- Repetition: same thing said 2-3 ways (換句話說... = repeat = drop)
-- Summary stamps: 一句話總結/總而言之/簡而言之/概括來說 — state conclusion directly, don't label it
-- Restating the question: never repeat back what the user just asked
-- Conditional upselling: 如果你告訴我X，我可以Y/如果你願意，我可以... — answer and stop
-- Plain-language restatement: 翻成人話就是.../用白話說... — explain clearly once, no tech + dumbed-down split
-
-## Replace List (compress, not delete)
-
-- 首先...其次...最後...總結 → drop ordinals, just list points
-- 由於...因此... → arrow or direct statement
-- 不僅是 X，更是 Y → X 也 Y
-- Template openers (根據分析，我們發現...) → direct statement
-- Four-character idiom stacking → keep only necessary ones
-- Passive voice (可以被認為) → active voice
-- Negation-contrast frame (不是X，而是Y) → state Y directly. BAD: 真正的問題不是效能，而是架構設計 → GOOD: 真正的問題是架構設計
-- Balanced-essay comparisons → give recommendation + brief reasoning, max 3-4 points per side. No「看你需求」cop-out
-
-## Preserve
-
-Technical terms, code blocks, error messages, file paths, CLI commands: unchanged.
-
-## Auto-Clarity
-
-Drop compression for: security warnings, irreversible action confirmations, user asks to clarify. Resume after clear part done.
+**例外：**
+安全性警告、不可逆操作確認 → 暫停壓縮，完整說明後恢復。
